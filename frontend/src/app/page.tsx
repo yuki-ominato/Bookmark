@@ -7,6 +7,12 @@ import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Trash, LinkIcon } from "lucide-react";
 
+interface Folder {
+  id: number;
+  name: string;
+  bookmarks: Bookmark[];
+}
+
 interface Bookmark {
   id: number;
   title: string;
@@ -23,7 +29,61 @@ const BookmarkApp: React.FC = () => {
   const [newTitle, setNewTitle] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [newNote, setNewNote] = useState("");
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [newfolderTitle, setNewFolderTitle] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
 
+  // フォルダ一覧の取得
+  const fetchFolders = async () => {
+    try {
+      const response = await fetch(`${API_URL}/folders`);
+      const data = await response.json();
+      setFolders(data);
+    } catch (error) {
+      console.error("フォルダの取得に失敗しました:", error);
+    }
+  };
+
+  // 初回読み込み時にフォルダを取得
+  useEffect(() => {
+    fetchFolders();
+  }, []);
+
+
+  const addFolder = async () => {
+    if (newfolderTitle.trim() === "") return;
+    try {
+      const response = await fetch(`${API_URL}/folders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: null,
+          name: newfolderTitle,
+        }),
+      });
+      if (response.ok) {
+        fetchFolders(); // 一覧を再取得
+        setNewFolderTitle("");
+      }
+    } catch (error) {
+      console.error("フォルダの追加に失敗しました:", error);
+    }
+  };
+
+  const removeFolder = async (id: number) => {
+    try {
+      const response = await fetch(`${API_URL}/folders/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        fetchFolders(); // 一覧を再取得
+      }
+    } catch (error) {
+      console.error("フォルダの削除に失敗しました:", error);
+    }
+  }
   // ブックマーク一覧の取得
   const fetchBookmarks = async () => {
     try {
@@ -101,7 +161,15 @@ const BookmarkApp: React.FC = () => {
   return (
     <div className="max-w-md mx-auto p-6 bg-white shadow-lg rounded-2xl space-y-4">
       <h1 className="text-xl font-bold text-center">Bookmark Manager</h1>
-      
+      {/* フォルダ追加フォーム */}
+      <div className="flex gap-2">
+        <Input
+          value={newfolderTitle}
+          onChange={(e) => setNewFolderTitle(e.target.value)}
+          placeholder="Folder name..."
+        />
+        <Button onClick={addFolder}>Add Folder</Button>
+      </div>
       {/* ブックマーク追加フォーム */}
       <div className="flex gap-2">
         <Input
@@ -121,7 +189,35 @@ const BookmarkApp: React.FC = () => {
         />
         <Button onClick={addBookmark}>Add</Button>
       </div>
+      {/* フォルダ一覧 */}
+      <div className="space-y-2">
+        {folders.map((folder) => (
+          <motion.div
+            key={folder.id}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+          >
+            <Card className="p-2 flex justify-between">
+              <CardContent className="flex-grow">
+                {/* フォルダ名 */}
+                <span className="block font-bold">{folder.name}</span>
+              </CardContent>
 
+              {/* 削除ボタン */}
+              <span className="flex-shrink-0 flex gap-2">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => removeFolder(folder.id)}
+                >
+                  <Trash className="w-5 h-5 text-red-500" />
+                </Button>
+              </span>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
       {/* ブックマーク一覧 */}
       <div className="space-y-2">
         {bookmarks.map((bookmark) => (
