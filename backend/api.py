@@ -34,6 +34,12 @@ def init_db():
             note TEXT
         )
     ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS folders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -46,6 +52,69 @@ class Bookmark(BaseModel):
     url: HttpUrl
     note: Optional[str] = None
 
+class Folder(BaseModel):
+    id: Optional[int]
+    name: str
+    Bookmarks: List['Bookmark'] = []
+
+# フォルダ一覧取得
+@app.get("/folders", response_model=List[Folder])
+def read_folders():
+    conn = get_db_connection()
+    cursor = conn.execute("SELECT * FROM folders")
+    rows = cursor.fetchall()
+    conn.close()
+    return [Folder(**dict(row)) for row in rows]
+
+# 単一フォルダ取得
+@app.get("/folders/{folder_id}", response_model=Folder)
+def read_folder(folder_id: int):
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM folders WHERE id = ?", (folder_id,)).fetchone()
+    conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    return Folder(**dict(row))
+
+# フォルダ作成
+@app.post("/folders", response_model=Folder, status_code=201)
+def create_folder(folder: Folder):
+    conn = get_db_connection()
+    cursor = conn.execute(
+        "INSERT INTO folders (name) VALUES (?)",
+        (folder.name,)
+    )
+    conn.commit()
+    folder_id = cursor.lastrowid
+    row = conn.execute("SELECT * FROM folders WHERE id = ?", (folder_id,)).fetchone()
+    conn.close()
+    return Folder(**dict(row))
+
+# フォルダ更新
+@app.put("/folders/{folder_id}", response_model=Folder)
+def update_folder(folder_id: int, folder: Folder):
+    conn = get_db_connection()
+    cursor = conn.execute(
+        "UPDATE folders SET name = ? WHERE id = ?",
+        (folder.name, folder_id)
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM folders WHERE id = ?", (folder_id,)).fetchone()
+    conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    return Folder(**dict(row))
+
+# フォルダ削除
+@app.delete("/folders/{folder_id}")
+def delete_folder(folder_id: int):
+    conn = get_db_connection()
+    cursor = conn.execute("DELETE FROM folders WHERE id = ?", (folder_id,))
+    conn.commit()
+    conn.close()
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    return {"message": "Folder deleted successfully"}
 # ブックマーク一覧取得
 @app.get("/bookmarks", response_model=List[Bookmark])
 def read_bookmarks():
@@ -74,6 +143,7 @@ def create_bookmark(bookmark: Bookmark):
         (bookmark.title, str(bookmark.url), bookmark.note)
     )
     conn.commit()
+    # 追加した行のIDを取得 
     bookmark_id = cursor.lastrowid
     row = conn.execute("SELECT * FROM bookmarks WHERE id = ?", (bookmark_id,)).fetchone()
     conn.close()
