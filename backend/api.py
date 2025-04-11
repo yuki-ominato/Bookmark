@@ -31,14 +31,16 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             url TEXT NOT NULL,
-            note TEXT
+            note TEXT,
+            folder_id INTEGER NOT NULL,
+            FOREIGN KEY (folder_id) REFERENCES folders (id) ON DELETE CASCADE
         )
     ''')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS folders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            parent_id INTEGER,
+            parent_id INTEGER NOT NULL,
             FOREIGN KEY (parent_id) REFERENCES folders (id) ON DELETE CASCADE
         )
     ''')
@@ -53,30 +55,18 @@ class Bookmark(BaseModel):
     title: str
     url: HttpUrl
     note: Optional[str] = None
+    folder_id: Optional[int] = None
 
 class Folder(BaseModel):
     id: Optional[int]
     name: str
     parent_id: Optional[int] = None
-    
-
-# フォルダ一覧取得
-# @app.get("/folders", response_model=List[Folder])
-# def read_folders():
-#     conn = get_db_connection()
-#     cursor = conn.execute("SELECT * FROM folders WHERE parent_id IS NULL")
-#     rows = cursor.fetchall()
-#     conn.close()
-#     return [Folder(**dict(row)) for row in rows]
 
 # フォルダ取得
 @app.get("/folders", response_model=List[Folder])
 def read_folders(parent_id: int = Query(None)):
     conn = get_db_connection()
-    if parent_id is None:
-        cursor = conn.execute("SELECT * FROM folders WHERE parent_id IS NULL")
-    else:
-        cursor = conn.execute("SELECT * FROM folders WHERE parent_id = ?", (parent_id,))
+    cursor = conn.execute("SELECT * FROM folders WHERE parent_id = ?", (parent_id,))
     rows = cursor.fetchall()
     conn.close()
     return [Folder(**dict(row)) for row in rows]
@@ -123,9 +113,9 @@ def delete_folder(folder_id: int):
 
 # ブックマーク一覧取得
 @app.get("/bookmarks", response_model=List[Bookmark])
-def read_bookmarks():
+def read_bookmarks(folder_id: int = Query(None)):
     conn = get_db_connection()
-    cursor = conn.execute("SELECT * FROM bookmarks")
+    cursor = conn.execute("SELECT * FROM bookmarks WHERE folder_id = ?", (folder_id,))
     rows = cursor.fetchall()
     conn.close()
     return [Bookmark(**dict(row)) for row in rows]
@@ -136,14 +126,15 @@ def read_bookmarks():
 def create_bookmark(bookmark: Bookmark):
     conn = get_db_connection()
     cursor = conn.execute(
-        "INSERT INTO bookmarks (title, url, note) VALUES (?, ?, ?)",
-        (bookmark.title, str(bookmark.url), bookmark.note)
+        "INSERT INTO bookmarks (title, url, note, folder_id) VALUES (?, ?, ?, ?)",
+        (bookmark.title, str(bookmark.url), bookmark.note, bookmark.folder_id,)
     )
     conn.commit()
     # 追加した行のIDを取得 
     bookmark_id = cursor.lastrowid
     row = conn.execute("SELECT * FROM bookmarks WHERE id = ?", (bookmark_id,)).fetchone()
     conn.close()
+    print(f"Created bookmark: {row}")  # デバッグ用ログ
     return Bookmark(**dict(row))
 
 # ブックマーク更新

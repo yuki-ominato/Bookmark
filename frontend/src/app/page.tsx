@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Trash, LinkIcon } from "lucide-react";
+import { select } from "framer-motion/client";
 
 interface Folder {
   id: number;
@@ -18,6 +19,7 @@ interface Bookmark {
   title: string;
   url: string;
   note: string | null;
+  folder_id: number | null;
 }
 
 const API_URL = "http://localhost:8000";
@@ -31,7 +33,7 @@ const BookmarkApp: React.FC = () => {
   const [newNote, setNewNote] = useState("");
   const [folders, setFolders] = useState<Folder[]>([]);
   const [newfolderTitle, setNewFolderTitle] = useState("");
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(0);
 
   // フォルダ一覧の取得
   const fetchFolders = async (parent_id: number | null) => {
@@ -49,7 +51,7 @@ const BookmarkApp: React.FC = () => {
 
   // 初回読み込み時にフォルダを取得
   useEffect(() => {
-    fetchFolders(null);
+    fetchFolders(selectedFolderId);
   }, []);
 
   // フォルダの追加
@@ -65,12 +67,11 @@ const BookmarkApp: React.FC = () => {
         body: JSON.stringify({
           id: null,
           name: newfolderTitle,
-          parent_id: selectedFolderId || null,
+          parent_id: selectedFolderId,
         }),
       });
       if (response.ok) {
-        const newFolder = await response.json();
-        fetchFolders(newFolder.id); // 一覧を再取得
+        fetchFolders(selectedFolderId); // 一覧を再取得
         setNewFolderTitle("");
       }
     } catch (error) {
@@ -93,14 +94,17 @@ const BookmarkApp: React.FC = () => {
   }
 
   // ブックマーク一覧の取得
-  const fetchBookmarks = async () => {
+  const fetchBookmarks = async (folder_id: number | null) => {
     try {
       // APIからブックマークを取得
       // awaitは非同期処理が完了するまで待機するために使用
       // fetchはAPIからデータを取得するための関数
       // responseはAPIからのレスポンスを格納する変数
       // dataはレスポンスをJSON形式に変換したもの
-      const response = await fetch(`${API_URL}/bookmarks`);
+      const url = folder_id === null
+      ? `${API_URL}/bookmarks`
+      : `${API_URL}/bookmarks?folder_id=${folder_id}`;
+      const response = await fetch(url);
       const data = await response.json();
       setBookmarks(data);
     } catch (error) {
@@ -115,7 +119,7 @@ const BookmarkApp: React.FC = () => {
   // 今回の場合、fetchBookmarksがcallback関数
   // 依存配列は空なので、初回のみ実行される
   useEffect(() => {
-    fetchBookmarks();
+    fetchBookmarks(selectedFolderId);
   }, []);
 
   // ブックマークの追加
@@ -136,11 +140,12 @@ const BookmarkApp: React.FC = () => {
           title: newTitle,
           url: newUrl,
           note: newNote || null,
+          folder_id: selectedFolderId
         }),
       });
 
       if (response.ok) {
-        fetchBookmarks(); // 一覧を再取得
+        fetchBookmarks(selectedFolderId); // 一覧を再取得
         setNewTitle("");
         setNewUrl("");
         setNewNote("");
@@ -158,7 +163,7 @@ const BookmarkApp: React.FC = () => {
       });
 
       if (response.ok) {
-        fetchBookmarks();
+        fetchBookmarks(id);
       }
     } catch (error) {
       console.error("ブックマークの削除に失敗しました:", error);
@@ -213,6 +218,7 @@ const BookmarkApp: React.FC = () => {
                   onClick={() => {
                     setSelectedFolderId(folder.id);
                     fetchFolders(folder.id);
+                    fetchBookmarks(folder.id);
                   }}
                   className="cursor-pointer text-blue-600 hover:underline"
                 >
