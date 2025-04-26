@@ -7,6 +7,15 @@ import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Trash, LinkIcon } from "lucide-react";
 import { select } from "framer-motion/client";
+import {
+  Breadcrumb,
+  BreadcrumbEllipsis,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 
 interface Folder {
   id: number;
@@ -35,12 +44,37 @@ const BookmarkApp: React.FC = () => {
   const [newfolderTitle, setNewFolderTitle] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(0);
 
+  // フォルダ移動履歴用のスタック
+  const [folderHistory, setFolderHistory] = useState<number[]>([]);
+  
+  // フォルダ移動
+  const moveToFolder = (folderId: number) => {
+    if (selectedFolderId !== null) {
+      setFolderHistory((prevHistory) => [...prevHistory, selectedFolderId]);
+    }
+    setSelectedFolderId(folderId);
+    fetchFolders(folderId);
+    fetchBookmarks(folderId);
+  };
+
+    // 一つ前のフォルダに戻る
+    const goBack = () => {
+      if (folderHistory.length > 0) {
+        const previousFolderId = folderHistory[folderHistory.length - 1];
+        setFolderHistory((prevHistory) => prevHistory.slice(0, -1));
+        setSelectedFolderId(previousFolderId);
+        fetchFolders(previousFolderId);
+        fetchBookmarks(previousFolderId);
+      }
+    };
+
   // フォルダ一覧の取得
   const fetchFolders = async (parent_id: number | null) => {
     try {
-      const url = parent_id === null
-        ? `${API_URL}/folders`
-        : `${API_URL}/folders?parent_id=${parent_id}`;
+      // const url = parent_id === null
+      //   ? `${API_URL}/folders`
+      //   : `${API_URL}/folders?parent_id=${parent_id}`;
+      const url = `${API_URL}/folders?parent_id=${parent_id}`;
       const response = await fetch(url);
       const data = await response.json();
       setFolders(data);
@@ -86,7 +120,7 @@ const BookmarkApp: React.FC = () => {
         method: 'DELETE',
       });
       if (response.ok) {
-        fetchFolders(id); // 一覧を再取得
+        fetchFolders(selectedFolderId); // 一覧を再取得
       }
     } catch (error) {
       console.error("フォルダの削除に失敗しました:", error);
@@ -163,7 +197,7 @@ const BookmarkApp: React.FC = () => {
       });
 
       if (response.ok) {
-        fetchBookmarks(id);
+        fetchBookmarks(selectedFolderId);
       }
     } catch (error) {
       console.error("ブックマークの削除に失敗しました:", error);
@@ -201,6 +235,20 @@ const BookmarkApp: React.FC = () => {
         />
         <Button onClick={addBookmark}>Add</Button>
       </div>
+      <div className="flex gap-2">
+        {/* 現在フォルダ表示*/}
+        {/* <Card className="flex justify-between">
+          <CardContent className="flex-grow">
+            <span className="block font-bold">
+              {folderHistory[folderHistory.length - 1]}
+            </span>
+          </CardContent>
+        </Card> */}
+        {/* 戻るボタン */}
+        <Button onClick={goBack} disabled={folderHistory.length === 0}>
+          Back
+        </Button>
+      </div> 
       {/* フォルダ一覧 */}
       <div className="space-y-2">
         {folders.map((folder) => (
@@ -212,14 +260,10 @@ const BookmarkApp: React.FC = () => {
           >
             <Card className="p-2 flex justify-between">
               <CardContent className="flex-grow">
-                {/* フォルダ名 */}
+                {/* フォルダ選択 */}
                 <span 
                   key={folder.id}
-                  onClick={() => {
-                    setSelectedFolderId(folder.id);
-                    fetchFolders(folder.id);
-                    fetchBookmarks(folder.id);
-                  }}
+                  onClick={() => moveToFolder(folder.id)}
                   className="cursor-pointer text-blue-600 hover:underline"
                 >
                   {folder.name}
