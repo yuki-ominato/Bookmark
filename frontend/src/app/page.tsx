@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Trash } from "lucide-react";
+import { createClient } from '@supabase/supabase-js';
 // import {LinkIcon} from "lucide-react";
 // import { select } from "framer-motion/client";
 // import {
@@ -32,7 +33,10 @@ interface Bookmark {
   folder_id: number | null;
 }
 
-const API_URL = "http://localhost:8000";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const BookmarkApp: React.FC = () => {
   // setBookmarkを呼び出すと、bookmarksの値が更新される
@@ -43,7 +47,7 @@ const BookmarkApp: React.FC = () => {
   const [newNote, setNewNote] = useState("");
   const [folders, setFolders] = useState<Folder[]>([]);
   const [newfolderTitle, setNewFolderTitle] = useState("");
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(0);
+  const [selectedFolderId, setSelectedFolderId] = useState<number>(0);
 
   // フォルダ移動履歴用のスタック
   const [folderHistory, setFolderHistory] = useState<number[]>([]);
@@ -70,15 +74,18 @@ const BookmarkApp: React.FC = () => {
     };
 
   // フォルダ一覧の取得
-  const fetchFolders = async (parent_id: number | null) => {
+  const fetchFolders = async (parent_id: number) => {
     try {
-      // const url = parent_id === null
-      //   ? `${API_URL}/folders`
-      //   : `${API_URL}/folders?parent_id=${parent_id}`;
-      const url = `${API_URL}/folders?parent_id=${parent_id}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      setFolders(data);
+      let query = supabase.from('folders').select('*');
+      let result;
+      if (parent_id === 0) {
+        result = await query.is('parent_id', null);
+      } else {
+        result = await query.eq('parent_id', parent_id);
+      }
+      const { data, error } = result;
+      if (error) throw error;
+      setFolders(data || []);
     } catch (error) {
       console.error("フォルダの取得に失敗しました:", error);
     }
@@ -94,21 +101,15 @@ const BookmarkApp: React.FC = () => {
   const addFolder = async () => {
     if (newfolderTitle.trim() === "") return;
     try {
-      const response = await fetch(`${API_URL}/folders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: null,
-          name: newfolderTitle,
-          parent_id: selectedFolderId,
-        }),
-      });
-      if (response.ok) {
-        fetchFolders(selectedFolderId); // 一覧を再取得
-        setNewFolderTitle("");
-      }
+      const { error } = await supabase
+        .from('folders')
+        .insert([{ 
+          name: newfolderTitle, 
+          parent_id: selectedFolderId === 0 ? null : selectedFolderId 
+        }]);
+      if (error) throw error;
+      fetchFolders(selectedFolderId);
+      setNewFolderTitle("");
     } catch (error) {
       console.error("フォルダの追加に失敗しました:", error);
     }
@@ -117,12 +118,12 @@ const BookmarkApp: React.FC = () => {
   // フォルダの削除
   const removeFolder = async (id: number) => {
     try {
-      const response = await fetch(`${API_URL}/folders/${id}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        fetchFolders(selectedFolderId); // 一覧を再取得
-      }
+      const { error } = await supabase
+        .from('folders')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      fetchFolders(selectedFolderId);
     } catch (error) {
       console.error("フォルダの削除に失敗しました:", error);
     }
@@ -131,17 +132,16 @@ const BookmarkApp: React.FC = () => {
   // ブックマーク一覧の取得
   const fetchBookmarks = async (folder_id: number | null) => {
     try {
-      // APIからブックマークを取得
-      // awaitは非同期処理が完了するまで待機するために使用
-      // fetchはAPIからデータを取得するための関数
-      // responseはAPIからのレスポンスを格納する変数
-      // dataはレスポンスをJSON形式に変換したもの
-      const url = folder_id === null
-      ? `${API_URL}/bookmarks`
-      : `${API_URL}/bookmarks?folder_id=${folder_id}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      setBookmarks(data);
+      let query = supabase.from('bookmarks').select('*');
+      let result;
+      if (folder_id === 0) {
+        result = await query.is('folder_id', null);
+      } else {
+        result = await query.eq('folder_id', folder_id);
+      }
+      const { data, error } = result;
+      if (error) throw error;
+      setBookmarks(data || []);
     } catch (error) {
       console.error("ブックマークの取得に失敗しました:", error);
     }
@@ -162,29 +162,19 @@ const BookmarkApp: React.FC = () => {
     if (newTitle.trim() === "" || newUrl.trim() === "") return;
 
     try {
-      const response = await fetch(`${API_URL}/bookmarks`, {
-        // POST:新しいデータを作成するためのHTTPメソッド
-        // headers:リクエストヘッダーを指定するためのオプション
-        // Content-Type:リクエストボディの形式を指定するためのヘッダー
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: null,
+      const { error } = await supabase
+        .from('bookmarks')
+        .insert([{
           title: newTitle,
           url: newUrl,
           note: newNote || null,
-          folder_id: selectedFolderId
-        }),
-      });
-
-      if (response.ok) {
-        fetchBookmarks(selectedFolderId); // 一覧を再取得
-        setNewTitle("");
-        setNewUrl("");
-        setNewNote("");
-      }
+          folder_id: selectedFolderId === 0 ? null : selectedFolderId
+        }]);
+      if (error) throw error;
+      fetchBookmarks(selectedFolderId);
+      setNewTitle("");
+      setNewUrl("");
+      setNewNote("");
     } catch (error) {
       console.error("ブックマークの追加に失敗しました:", error);
     }
@@ -193,13 +183,12 @@ const BookmarkApp: React.FC = () => {
   // ブックマークの削除
   const removeBookmark = async (id: number) => {
     try {
-      const response = await fetch(`${API_URL}/bookmarks/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchBookmarks(selectedFolderId);
-      }
+      const { error } = await supabase
+        .from('bookmarks')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      fetchBookmarks(selectedFolderId);
     } catch (error) {
       console.error("ブックマークの削除に失敗しました:", error);
     }
