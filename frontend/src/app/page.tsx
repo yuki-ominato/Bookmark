@@ -4,8 +4,8 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { motion } from "framer-motion";
-import { Trash } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trash, FolderPlus, BookmarkPlus, ArrowLeft, Folder } from "lucide-react";
 // import {LinkIcon} from "lucide-react";
 // import { select } from "framer-motion/client";
 // import {
@@ -206,126 +206,168 @@ const BookmarkApp: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white shadow-lg rounded-2xl space-y-4">
-      <h1 className="text-xl font-bold text-center">Bookmark Manager</h1>
-      {/* フォルダ追加フォーム */}
-      <div className="flex gap-2">
-        <Input
-          value={newfolderTitle}
-          onChange={(e) => setNewFolderTitle(e.target.value)}
-          placeholder="Folder name..."
-        />
-        <Button onClick={addFolder}>Add Folder</Button>
-      </div>
-      {/* ブックマーク追加フォーム */}
-      <div className="flex gap-2">
-        <Input
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          placeholder="Bookmark title..." 
-        />
-        <Input
-          value={newUrl}
-          onChange={(e) => setNewUrl(e.target.value)}
-          placeholder="Bookmark URL..." 
-        />
-        <Input
-          value={newNote}
-          onChange={(e) => setNewNote(e.target.value)}
-          placeholder="Note..." 
-        />
-        <Button onClick={addBookmark}>Add</Button>
-      </div>
-      <div className="flex gap-2">
-        {/* 現在フォルダ表示*/}
-        {/* <Card className="flex justify-between">
-          <CardContent className="flex-grow">
-            <span className="block font-bold">
-              {folderHistory[folderHistory.length - 1]}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl shadow-xl p-8 space-y-6"
+        >
+          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Bookmark Manager
+          </h1>
+
+          {/* フォルダ追加フォーム */}
+          <div className="flex gap-2 bg-gray-50 p-4 rounded-lg">
+            <Input
+              value={newfolderTitle}
+              onChange={(e) => setNewFolderTitle(e.target.value)}
+              placeholder="新しいフォルダ名..."
+              className="flex-1"
+            />
+            <Button 
+              onClick={addFolder}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+            >
+              <FolderPlus className="w-5 h-5 mr-2" />
+              フォルダ追加
+            </Button>
+          </div>
+
+          {/* ブックマーク追加フォーム */}
+          <div className="flex flex-col gap-2 bg-gray-50 p-4 rounded-lg">
+            <div className="flex gap-2">
+              <Input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="ブックマークのタイトル..." 
+                className="flex-1"
+              />
+              <Input
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                placeholder="URL..." 
+                className="flex-1"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="メモ..." 
+                className="flex-1"
+              />
+              <Button 
+                onClick={addBookmark}
+                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
+              >
+                <BookmarkPlus className="w-5 h-5 mr-2" />
+                追加
+              </Button>
+            </div>
+          </div>
+
+          {/* ナビゲーション */}
+          <div className="flex items-center gap-4">
+            <Button 
+              onClick={goBack} 
+              disabled={folderHistory.length === 0}
+              variant="outline"
+              className="flex items-center"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              戻る
+            </Button>
+            <span className="text-sm text-gray-500">
+              {selectedFolderId === 0 ? "ルートフォルダ" : `フォルダID: ${selectedFolderId}`}
             </span>
-          </CardContent>
-        </Card> */}
-        {/* 戻るボタン */}
-        <Button onClick={goBack} disabled={folderHistory.length === 0}>
-          Back
-        </Button>
-      </div> 
-      {/* フォルダ一覧 */}
-      <div className="space-y-2">
-        {folders.map((folder) => (
-          <motion.div
-            key={folder.id}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-          >
-            <Card className="p-2 flex justify-between">
-              <CardContent className="flex-grow">
-                {/* フォルダ選択 */}
-                <span 
+          </div>
+
+          {/* フォルダ一覧 */}
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-gray-700 mb-2">フォルダ</h2>
+            <AnimatePresence>
+              {folders.map((folder) => (
+                <motion.div
                   key={folder.id}
-                  onClick={() => moveToFolder(folder.id)}
-                  className="cursor-pointer text-blue-600 hover:underline"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                 >
-                  {folder.name}
-                </span>
-              </CardContent>
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4 flex justify-between items-center">
+                      <div 
+                        onClick={() => moveToFolder(folder.id)}
+                        className="flex items-center cursor-pointer group"
+                      >
+                        <Folder className="w-5 h-5 text-blue-500 mr-2" />
+                        <span className="text-blue-600 group-hover:text-blue-800 transition-colors">
+                          {folder.name}
+                        </span>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeFolder(folder.id)}
+                        className="hover:bg-red-50"
+                      >
+                        <Trash className="w-5 h-5 text-red-500" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
 
-              {/* 削除ボタン */}
-              <span className="flex-shrink-0 flex gap-2">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => removeFolder(folder.id)}
+          {/* ブックマーク一覧 */}
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-gray-700 mb-2">ブックマーク</h2>
+            <AnimatePresence>
+              {bookmarks.map((bookmark) => (
+                <motion.div
+                  key={bookmark.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                 >
-                  <Trash className="w-5 h-5 text-red-500" />
-                </Button>
-              </span>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-      {/* ブックマーク一覧 */}
-      <div className="space-y-2">
-        {bookmarks.map((bookmark) => (
-          <motion.div
-            key={bookmark.id}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-          >
-            <Card className="p-2 flex justify-between">
-              <CardContent className="flex-grow">
-                {/* タイトル */}
-                <span className="block font-bold">{bookmark.title}</span>
-                {/* URL */}
-                <a
-                  href={bookmark.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-blue-500 hover:underline"
-                >
-                  {bookmark.url}
-                </a>
-                {/* メモ */}
-                {bookmark.note && (
-                  <span className="block text-sm text-gray-500">{bookmark.note}</span>
-                )}
-              </CardContent>
-
-              {/* 削除ボタン */}
-              <span className="flex-shrink-0 flex gap-2">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => removeBookmark(bookmark.id)}
-                >
-                  <Trash className="w-5 h-5 text-red-500" />
-                </Button>
-              </span>
-            </Card>
-          </motion.div>
-        ))}
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <h3 className="font-semibold text-gray-900">{bookmark.title}</h3>
+                          <a
+                            href={bookmark.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 transition-colors block"
+                          >
+                            {bookmark.url}
+                          </a>
+                          {bookmark.note && (
+                            <p className="text-sm text-gray-500 mt-1">{bookmark.note}</p>
+                          )}
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeBookmark(bookmark.id)}
+                          className="hover:bg-red-50"
+                        >
+                          <Trash className="w-5 h-5 text-red-500" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
